@@ -1,10 +1,11 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 #Author: Manuel Sandoval
 
 import sys
 import getopt
 import os
 import uuid
+import subprocess
 
 helpMsg = """
 Usage: python3 oscaptool.py [OPTION] [ARGUMENT]
@@ -40,27 +41,60 @@ class OscapTool:
     else:
       return False
   
+  def getCatCmd(self, idNum, valueTest):
+    catStr = ''
+    if valueTest == 'rules taken':
+      catStr = 'cat files/' + idNum +'-ssg-results.html | grep -o \'[0-9]* rules taken\' | grep -o \'[0-9]*\''
+    elif valueTest == 'passed':
+      catStr = 'cat files/' + idNum +'-ssg-results.html | grep -o \'[0-9]* passed\' | grep -o \'[0-9]*\''
+    else:
+      catStr = 'cat files/' + idNum +'-ssg-results.html | grep -o \'[0-9]* failed\' | grep -o \'[0-9]*\''
+    return catStr
+
+  def printDiff(self, valueTest, id1, id2):
+    cmdToUse = 'diff <('+ self.getCatCmd(id1, valueTest)+') ' \
+    '<('+ self.getCatCmd(id2, valueTest)+')'
+    diffCmd = subprocess.call(['bash', '-c', cmdToUse + '&> /dev/null'])
+    if diffCmd == 1:
+      print('DIFF summary in '+valueTest)
+      print('ID #1: ', id1)
+      subprocess.call(['bash', '-c', cmdToUse + ' | grep -o \'< [0-9]*\' | grep -o \'[0-9]*\''])
+      print('ID #2: ', id2)
+      subprocess.call(['bash', '-c', cmdToUse + ' | grep -o \'> [0-9]*\' | grep -o \'[0-9]*\''])
+    else:
+      print('No differences in '+ valueTest)
+    print()
+
+  
   def compareReports(self,id1, id2):
+    
     if self.existId(id1) and self.existId(id2):
       print('SCAN ID #1: ', id1)
       print('Total rules: ')
-      os.system('cat files/' + id1 +'-ssg-results.html | grep -o \'[0-9]* rules taken\' | grep -o \'[0-9]*\'')
+      os.system(self.getCatCmd(id1,'rules taken'))
       print('Passed: ')
-      os.system('cat files/' + id1 +'-ssg-results.html | grep -o \'[0-9]* passed\' | grep -o \'[0-9]*\'')
+      os.system(self.getCatCmd(id1,'passed'))
       print('Failed: ')
-      os.system('cat files/' + id1 +'-ssg-results.html | grep -o \'[0-9]* failed\' | grep -o \'[0-9]*\'')
+      os.system(self.getCatCmd(id1,'failed'))
       print('Other: ')
       os.system('cat files/' + id1 +'-ssg-results.html | grep \'progress-bar-warning\' | grep -o \'[0-9]* other\' | grep -o \'[0-9]*\'')
       print()
       print('SCAN ID #2: ', id2)
       print('Total rules: ')
-      os.system('cat files/' + id2 +'-ssg-results.html | grep -o \'[0-9]* rules taken\' | grep -o \'[0-9]*\'')
+      os.system(self.getCatCmd(id1,'rules taken'))
       print('Passed: ')
-      os.system('cat files/' + id2 +'-ssg-results.html | grep -o \'[0-9]* passed\' | grep -o \'[0-9]*\'')
+      os.system(self.getCatCmd(id1,'passed'))
       print('Failed: ')
-      os.system('cat files/' + id2 +'-ssg-results.html | grep -o \'[0-9]* failed\' | grep -o \'[0-9]*\'')
+      os.system(self.getCatCmd(id1,'rules taken'))
       print('Other: ')
       os.system('cat files/' + id2 +'-ssg-results.html | grep \'progress-bar-warning\' | grep -o \'[0-9]* other\' | grep -o \'[0-9]*\'')
+
+      print()
+      
+      self.printDiff('rules taken', id1, id2)
+      self.printDiff('passed', id1, id2)
+      self.printDiff('failed', id1, id2)
+      
     else:
       print('Invalid ID')
 
